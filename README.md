@@ -1,4 +1,4 @@
-# VoltFlow ⚡
+# VoltFlow 
 
 **VoltFlow**, elektrikli scooter filolarını tek bir panelden yönetmek için geliştirilmiş bir **mikromobilite yönetim sistemidir**. Araçların durumunu, batarya seviyelerini, konumlarını ve bakım/şarj geçmişini canlı olarak takip etmeyi sağlar.
 
