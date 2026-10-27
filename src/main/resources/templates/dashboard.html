@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>VoltFlow — Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: { 
+                       
+                        palette1: '#46A094',
+                        palette2: '#6BBD99', 
+                        palette3: '#AECFA4', 
+                        palette4: '#C4E8C2', 
+                        cardBg: '#ffffff',
+                        textMain: '#1A332F',
+                        textMuted: '#5B7A75',
+                        danger: '#E05A5A',
+                        warning: '#F0A54A'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f0fdf4; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #AECFA4; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-[#e4f5ee] text-textMain min-h-screen font-sans flex">
+    <aside class="w-64 bg-white border-r border-palette4 shadow-sm flex flex-col fixed h-full z-50">
+        <div class="px-6 h-20 border-b border-palette4 flex items-center gap-3">
+            <i class="fa-solid fa-bolt text-palette1 text-2xl"></i>
+            <span class="text-palette1 text-xl font-black tracking-widest">VOLTFLOW</span>
+        </div>
+        <nav class="flex-1 px-4 py-6 space-y-2">
+            <a href="/dashboard" class="flex items-center gap-3 px-4 py-3 bg-palette4/30 text-palette1 rounded-xl font-bold transition-all border border-palette3/50">
+                <i class="fa-solid fa-chart-pie text-lg"></i> Dashboard
+            </a>
+            <a sec:authorize="hasRole('ADMIN')" href="/map" class="flex items-center gap-3 px-4 py-3 text-textMuted hover:text-palette1 hover:bg-palette4/20 rounded-xl font-semibold transition-all group">
+                <i class="fa-solid fa-map-location-dot text-lg group-hover:scale-110 transition-transform"></i> Canlı Harita
+            </a>
+            <a href="/scooters" class="flex items-center gap-3 px-4 py-3 text-textMuted hover:text-palette1 hover:bg-palette4/20 rounded-xl font-semibold transition-all group">
+                <i class="fa-solid fa-motorcycle text-lg group-hover:scale-110 transition-transform"></i> Araç Filosu
+            </a>
+            <a sec:authorize="hasRole('ADMIN')" href="/scooters/new" class="flex items-center gap-3 px-4 py-3 text-textMuted hover:text-palette1 hover:bg-palette4/20 rounded-xl font-semibold transition-all group">
+                <i class="fa-solid fa-plus text-lg group-hover:scale-110 transition-transform"></i> Yeni Araç Ekle
+            </a>
+        </nav>
+        <div class="p-4 border-t border-palette4 bg-palette4/10">
+            <div class="flex items-center gap-3 px-2">
+                <div class="w-8 h-8 rounded-full bg-palette1/10 text-palette1 flex items-center justify-center font-bold text-xs border border-palette1/20">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+                <div>
+                    <div class="text-xs font-bold text-textMain uppercase" sec:authentication="name">KULLANICI</div>
+                    <form th:action="@{/logout}" method="post">
+                        <button type="submit" class="text-[10px] text-textMuted hover:text-danger transition-colors cursor-pointer mt-0.5">Sistemden Çıkış</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 pl-64 min-h-screen flex flex-col">
+        <header class="h-20 border-b border-palette4 px-10 flex items-center justify-between bg-white/80 backdrop-blur-md sticky top-0 z-40 shadow-sm">
+            <div class="flex items-center gap-3">
+                <h1 class="text-xl font-black text-textMain tracking-wide">Genel Bakış</h1>
+                <span class="text-[10px] bg-palette2/10 text-palette1 border border-palette2/30 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider">Canlı Veri</span>
+            </div>
+            <div class="flex items-center gap-6">
+                <div class="relative group cursor-pointer">
+                    <div class="relative w-10 h-10 bg-palette4/30 border border-palette3/50 rounded-full flex items-center justify-center text-palette1 hover:bg-palette4/50 transition-colors">
+                        <i class="fa-regular fa-bell text-lg"></i>
+                        <span th:if="${!recentNotifications.isEmpty()}" class="absolute top-0 right-0 w-2.5 h-2.5 bg-danger rounded-full border-2 border-white animate-pulse"></span>
+                    </div>
+
+                    <div class="absolute right-0 mt-2 w-80 bg-white border border-palette3/50 rounded-xl shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 overflow-hidden transform origin-top-right scale-95 group-hover:scale-100">
+                        <div class="p-4 border-b border-palette4 bg-palette4/20 flex justify-between items-center">
+                            <span class="text-xs font-bold text-textMain uppercase tracking-wider">Son Aktiviteler</span>
+                            <span class="text-[10px] bg-palette1/10 text-palette1 px-2 py-0.5 rounded border border-palette1/20">Oto-Log</span>
+                        </div>
+                        
+                        <div class="max-h-[300px] overflow-y-auto custom-scrollbar">
+                            <div th:if="${recentNotifications.isEmpty()}" class="p-6 text-center text-xs text-textMuted font-medium">
+                                <i class="fa-regular fa-circle-check text-2xl mb-2 text-palette3"></i><br>
+                                Henüz bir sistem aktivitesi bulunmuyor.
+                            </div>
+                            
+                            <div th:each="notif : ${recentNotifications}" class="p-4 border-b border-palette4/50 hover:bg-palette4/10 transition-colors">
+                                <p class="text-xs text-textMain font-medium leading-relaxed" th:text="${notif.message}">Mesaj</p>
+                                <span class="text-[10px] text-textMuted mt-2 block font-bold" th:text="${#temporals.format(notif.createdAt, 'HH:mm - dd MMM yyyy')}">Zaman</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-right hidden sm:block border-l border-palette4 pl-6">
+                    <div class="text-xs font-bold text-textMuted" th:text="${#temporals.format(#temporals.createNow(), 'dd MMMM yyyy')}">Tarih</div>
+                    <div class="text-[10px] text-palette1 font-bold tracking-wider uppercase mt-0.5">Sistem Aktif</div>
+                </div>
+            </div>
+        </header>
+
+        <div class="p-10 max-w-[1600px] w-full mx-auto space-y-8 flex-1">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+                <div class="bg-cardBg border border-palette3/40 rounded-2xl p-6 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
+                    <div>
+                        <div class="text-[11px] font-bold text-textMuted uppercase tracking-wider mb-1">Toplam Filo</div>
+                        <div class="text-3xl font-black text-textMain" th:text="${totalCount}">0</div>
+                    </div>
+                    <div class="w-12 h-12 bg-palette4/40 text-palette1 flex items-center justify-center rounded-xl">
+                        <i class="fa-solid fa-layer-group text-xl"></i>
+                    </div>
+                </div>
+                <div class="bg-cardBg border border-palette3/40 rounded-2xl p-6 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
+                    <div>
+                        <div class="text-[11px] font-bold text-textMuted uppercase tracking-wider mb-1">Aktif Yayında</div>
+                        <div class="text-3xl font-black text-palette2" th:text="${activeCount}">0</div>
+                    </div>
+                    <div class="w-12 h-12 bg-palette2/10 text-palette2 flex items-center justify-center rounded-xl border border-palette2/20">
+                        <i class="fa-solid fa-location-dot text-xl"></i>
+                    </div>
+                </div>
+                <div class="bg-cardBg border border-palette3/40 rounded-2xl p-6 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
+                    <div>
+                        <div class="text-[11px] font-bold text-textMuted uppercase tracking-wider mb-1">Bakımda</div>
+                        <div class="text-3xl font-black text-warning" th:text="${maintenanceCount}">0</div>
+                    </div>
+                    <div class="w-12 h-12 bg-warning/10 text-warning flex items-center justify-center rounded-xl border border-warning/20">
+                        <i class="fa-solid fa-screwdriver-wrench text-xl"></i>
+                    </div>
+                </div>
+                <div class="bg-cardBg border border-palette3/40 rounded-2xl p-6 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
+                    <div>
+                        <div class="text-[11px] font-bold text-textMuted uppercase tracking-wider mb-1">Ort. Batarya</div>
+                        <div class="text-3xl font-black text-palette1" th:text="${avgBattery} + '%'">0%</div>
+                    </div>
+                    <div class="w-12 h-12 bg-palette1/10 text-palette1 flex items-center justify-center rounded-xl border border-palette1/20">
+                        <i class="fa-solid fa-battery-half text-xl"></i>
+                    </div>
+                </div>
+                <div class="bg-cardBg border border-danger/20 rounded-2xl p-6 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
+                    <div>
+                        <div class="text-[11px] font-bold text-textMuted uppercase tracking-wider mb-1">Toplam Maliyet</div>
+                        <div class="text-2xl font-black text-danger" th:text="${totalCost} + ' ₺'">0.0 ₺</div>
+                    </div>
+                    <div class="w-12 h-12 bg-danger/10 text-danger flex items-center justify-center rounded-xl border border-danger/20">
+                        <i class="fa-solid fa-wallet text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                <div class="bg-cardBg border border-palette3/40 rounded-2xl p-6 shadow-sm flex flex-col items-center justify-between">
+                    <div class="w-full border-b border-palette4 pb-3 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-simple text-palette1"></i>
+                        <h3 class="text-sm font-bold text-textMain tracking-wide">Grafiksel Dağılım</h3>
+                    </div>
+                    <div class="w-full max-w-[220px] flex items-center justify-center my-auto">
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                    <div class="w-full flex justify-around text-[11px] font-bold pt-4 border-t border-palette4 mt-4">
+                        <span class="text-palette2"><i class="fa-solid fa-circle text-[8px] mr-1"></i>Yayında</span>
+                        <span class="text-warning"><i class="fa-solid fa-circle text-[8px] mr-1"></i>Bakımda</span>
+                        <span class="text-danger"><i class="fa-solid fa-circle text-[8px] mr-1"></i>Şarjda</span>
+                    </div>
+                </div>
+
+                <div class="bg-cardBg border border-palette3/40 rounded-2xl p-8 shadow-sm">
+                    <div class="flex justify-between items-center mb-6 border-b border-palette4 pb-3">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-triangle-exclamation text-danger"></i>
+                            <h3 class="text-sm font-bold text-textMain tracking-wide">Acil Şarj Listesi</h3>
+                        </div>
+                        <span class="text-[10px] bg-danger/10 text-danger border border-danger/20 px-2 py-1 rounded font-bold uppercase tracking-wider" th:text="${criticalCount} + ' Kritik'">0 Kritik</span>
+                    </div>
+
+                    <div th:if="${criticalScooters.isEmpty()}" class="text-center py-12">
+                        <i class="fa-solid fa-shield-halved text-5xl mb-4 text-palette3 opacity-50"></i>
+                        <div class="text-palette2 font-bold text-sm tracking-wide">Güvenli sınırda.</div>
+                    </div>
+
+                    <div class="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar" th:if="${!criticalScooters.isEmpty()}">
+                        <div th:each="s : ${criticalScooters}" class="flex items-center justify-between bg-white border border-palette4 rounded-xl p-4 shadow-sm hover:border-danger/40 transition-colors">
+                            <div class="flex items-center gap-4">
+                                <div class="w-10 h-10 rounded-lg bg-danger/10 flex items-center justify-center text-sm text-danger border border-danger/20">
+                                    <i class="fa-solid fa-battery-quarter"></i>
+                                </div>
+                                <div>
+                                    <div class="font-bold text-sm text-textMain" th:text="${s.serialNumber}">SN</div>
+                                    <div class="text-xs text-textMuted font-medium mt-0.5" th:text="${s.model}">Model</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-4">
+                                <div class="text-right">
+                                    <span class="text-danger font-black text-sm" th:text="${s.batteryLevel} + '%'">0%</span>
+                                    <div class="w-16 h-1.5 bg-palette4/50 rounded-full mt-1 overflow-hidden">
+                                        <div class="h-full bg-danger rounded-full" th:style="'width:' + ${s.batteryLevel} + '%'"></div>
+                                    </div>
+                                </div>
+                                <a th:href="@{/scooters/{id}(id=${s.id})}" class="w-8 h-8 flex items-center justify-center bg-palette4/30 border border-palette3/50 text-palette1 rounded-lg hover:bg-palette1 hover:text-white transition-all">
+                                    <i class="fa-solid fa-chevron-right text-xs"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-cardBg border border-palette3/40 rounded-2xl p-8 shadow-sm">
+                    <div class="flex justify-between items-center mb-6 border-b border-palette4 pb-3">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-screwdriver-wrench text-warning"></i>
+                            <h3 class="text-sm font-bold text-textMain tracking-wide">Bakımdaki Araçlar</h3>
+                        </div>
+                        <span class="text-[10px] bg-warning/10 text-warning border border-warning/20 px-2 py-1 rounded font-bold uppercase tracking-wider" th:text="${maintenanceCount} + ' Bakım'">0 Bakım</span>
+                    </div>
+
+                    <div th:if="${maintenanceScooters.isEmpty()}" class="text-center py-12">
+                        <i class="fa-solid fa-check-double text-5xl mb-4 text-palette3 opacity-50"></i>
+                        <div class="text-textMuted font-bold text-sm tracking-wide">Bakımda araç yok.</div>
+                    </div>
+
+                    <div class="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar" th:if="${!maintenanceScooters.isEmpty()}">
+                        <div th:each="s : ${maintenanceScooters}" class="flex flex-col gap-4 bg-white border border-palette4 rounded-xl p-4 shadow-sm hover:border-warning/40 transition-colors">
+                            <div class="flex justify-between items-start">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-lg bg-warning/10 flex items-center justify-center text-xs text-warning border border-warning/20">
+                                        <i class="fa-solid fa-gear fa-spin-pulse"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-bold text-sm text-textMain" th:text="${s.serialNumber}">SN</div>
+                                        <div class="text-[10px] text-textMuted font-medium uppercase" th:text="${s.model}">Model</div>
+                                    </div>
+                                </div>
+                                <span class="text-[9px] bg-warning/10 text-warning border border-warning/20 px-2 py-0.5 rounded font-bold uppercase tracking-wider">İşlemde</span>
+                            </div>
+                            <div class="flex gap-2 w-full">
+                                <a th:href="@{/scooters/{id}(id=${s.id})}" class="flex-1 text-center py-2 bg-palette4/20 border border-palette3/50 text-[11px] text-palette1 font-bold rounded-lg hover:bg-palette1 hover:text-white transition-all"><i class="fa-solid fa-magnifying-glass mr-1"></i> İncele</a>
+                                <a th:href="@{/scooters/finish-maintenance/{id}(id=${s.id})}" onclick="return confirm('Bakımı bitirip aracı sahaya (YAYINDA) sürmek istediğinize emin misiniz?')" class="flex-1 text-center py-2 bg-palette2 border border-palette2 text-[11px] text-white font-bold rounded-lg hover:bg-palette1 hover:border-palette1 transition-all"><i class="fa-solid fa-check mr-1"></i> Tamamla</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <script th:inline="javascript">
+        document.addEventListener("DOMContentLoaded", function () {
+            const active = /*[[${activeCount}]]*/ 0;
+            const maintenance = /*[[${maintenanceCount}]]*/ 0;
+            const charging = /*[[${chargingCount}]]*/ 0;
+
+            const ctx = document.getElementById('statusChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Yayında', 'Bakımda', 'Şarjda'],
+                    datasets: [{
+                        data: [active, maintenance, charging],
+                        backgroundColor: ['#6BBD99', '#F0A54A', '#E05A5A'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff',
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    cutout: '65%',
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

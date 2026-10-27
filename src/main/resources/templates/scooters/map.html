@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>VoltFlow — Canlı Harita ve Operasyon</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: { 
+                        palette1: '#46A094', palette2: '#6BBD99', palette3: '#AECFA4', palette4: '#C4E8C2', 
+                        cardBg: '#ffffff', textMain: '#1A332F', textMuted: '#5B7A75', danger: '#E05A5A', warning: '#F0A54A'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        #map { height: calc(100vh - 80px); width: 100%; z-index: 1; }
+
+        .leaflet-popup-content-wrapper { background-color: #ffffff; border: 1px solid #C4E8C2; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .leaflet-popup-tip { background-color: #ffffff; border-bottom: 1px solid #C4E8C2; border-right: 1px solid #C4E8C2; }
+    </style>
+</head>
+<body class="bg-[#e4f5ee] text-textMain h-screen overflow-hidden font-sans flex">
+
+    <aside class="w-64 bg-white border-r border-palette4 shadow-sm flex flex-col fixed h-full z-50">
+        <div class="px-6 h-20 border-b border-palette4 flex items-center gap-3">
+            <i class="fa-solid fa-bolt text-palette1 text-2xl"></i>
+            <span class="text-palette1 text-xl font-black tracking-widest">VOLTFLOW</span>
+        </div>
+        <nav class="flex-1 px-4 py-6 space-y-2">
+            <a href="/dashboard" class="flex items-center gap-3 px-4 py-3 text-textMuted hover:text-palette1 hover:bg-palette4/20 rounded-xl font-semibold transition-all group">
+                <i class="fa-solid fa-chart-pie text-lg group-hover:scale-110 transition-transform"></i> Dashboard
+            </a>
+            <a href="/map" class="flex items-center gap-3 px-4 py-3 bg-palette4/30 text-palette1 rounded-xl font-bold transition-all border border-palette3/50">
+                <i class="fa-solid fa-map-location-dot text-lg"></i> Canlı Harita
+            </a>
+            <a href="/scooters" class="flex items-center gap-3 px-4 py-3 text-textMuted hover:text-palette1 hover:bg-palette4/20 rounded-xl font-semibold transition-all group">
+                <i class="fa-solid fa-motorcycle text-lg group-hover:scale-110 transition-transform"></i> Araç Filosu
+            </a>
+            <a sec:authorize="hasRole('ADMIN')" href="/scooters/new" class="flex items-center gap-3 px-4 py-3 text-textMuted hover:text-palette1 hover:bg-palette4/20 rounded-xl font-semibold transition-all group">
+                <i class="fa-solid fa-plus text-lg group-hover:scale-110 transition-transform"></i> Yeni Araç Ekle
+            </a>
+        </nav>
+        <div class="p-4 border-t border-palette4 bg-palette4/10">
+            <div class="flex items-center gap-3 px-2">
+                <div class="w-8 h-8 rounded-full bg-palette1/10 text-palette1 flex items-center justify-center font-bold text-xs border border-palette1/20"><i class="fa-solid fa-user"></i></div>
+                <div>
+                    <div class="text-xs font-bold text-textMain uppercase" sec:authentication="name">KULLANICI</div>
+                    <form th:action="@{/logout}" method="post">
+                        <button type="submit" class="text-[10px] text-textMuted hover:text-danger transition-colors cursor-pointer mt-0.5">Sistemden Çıkış</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 pl-64 h-screen flex flex-col relative">
+        <header class="h-20 border-b border-palette4 px-10 flex items-center justify-between bg-white/90 backdrop-blur-md z-40 shadow-sm relative">
+            <div class="flex items-center gap-3">
+                <h1 class="text-xl font-black text-textMain tracking-wide">Operasyon Merkezi</h1>
+            </div>
+        </header>
+
+        <div id="map"></div>
+        
+        <div id="loadingOverlay" class="absolute inset-0 bg-white/70 backdrop-blur-sm z-[9999] hidden flex-col items-center justify-center">
+            <i class="fa-solid fa-satellite-dish text-4xl text-palette1 fa-fade mb-3"></i>
+            <span class="text-sm font-bold text-palette1 tracking-widest uppercase">Uydudan Koordinat Senkronize Ediliyor...</span>
+        </div>
+    </main>
+
+    <script th:inline="javascript">
+        document.addEventListener("DOMContentLoaded", function () {
+
+            const map = L.map('map').setView([41.1115, 29.0224], 12);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap &copy; CARTO'
+            }).addTo(map);
+
+            const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+            const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+            let scooterOptions = '<option value="" disabled selected>-- Entegre Edilecek Aracı Seçin --</option>';
+            
+            /*[# th:each="s : ${scooters}"]*/
+                var idNum = /*[[${s.id}]]*/ null;
+                var snStr = /*[[${s.serialNumber}]]*/ '';
+                var batNum = /*[[${s.batteryLevel}]]*/ 0;
+                var hasLoc = /*[[${s.location != null && s.location.latitude != null}]]*/ false;
+                
+                var labelTag = hasLoc ? '🔄 (Konum Değiştir)' : '📍 (Yeni Sahaya Çıkar)';
+                scooterOptions += '<option value="' + idNum + '">' + snStr + ' | %' + batNum + ' Batarya | ' + labelTag + '</option>';
+            /*[/]*/
+
+            /*[# th:each="s : ${scooters}"]*/
+                var lat = /*[[${s.location != null ? s.location.latitude : null}]]*/ null;
+                var lng = /*[[${s.location != null ? s.location.longitude : null}]]*/ null;
+                var status = /*[[${s.status.name()}]]*/ '';
+                var markerSn = /*[[${s.serialNumber}]]*/ '';
+                var markerModel = /*[[${s.model}]]*/ '';
+                var markerBat = /*[[${s.batteryLevel}]]*/ 0;
+                var markerId = /*[[${s.id}]]*/ 0;
+
+                if (lat !== null && lng !== null) {
+                    var color = '#6BBD99'; 
+                    if (status === 'BAKIMDA') color = '#F0A54A';
+                    if (status === 'SARJDA') color = '#E05A5A';
+
+                    var marker = L.circleMarker([lat, lng], {
+                        radius: 9, fillColor: color, color: '#ffffff', weight: 2, opacity: 1, fillOpacity: 0.95
+                    }).addTo(map);
+
+                    var textColorClass = markerBat < 20 ? 'text-danger' : 'text-palette2';
+
+                    var popupHtml = '<div class="font-sans min-w-[200px] px-1 pb-1 mt-3">' + 
+                            '<div class="text-sm font-black text-textMain border-b border-palette4 pb-2 mb-2 flex items-center justify-between">' +
+                                '<span class="flex items-center"><i class="fa-solid fa-bolt text-palette1 mr-1.5"></i> ' + markerSn + '</span>' +
+                                '<span class="' + textColorClass + ' text-xs font-bold">' + markerBat + '%</span>' +
+                            '</div>' +
+                            '<div class="text-[10px] text-textMuted font-bold mb-3 uppercase tracking-wider text-center">' + markerModel + '</div>' +
+                            '<a href="/scooters/' + markerId + '" class="block w-full text-center bg-palette4/30 text-palette1 border border-palette3/50 text-[11px] font-bold py-1.5 rounded hover:bg-palette1 hover:text-white transition-colors">Donanım Detayını Gör</a>' +
+                        '</div>';
+                    marker.bindPopup(popupHtml);
+                }
+            /*[/]*/
+
+            map.on('click', function(e) {
+                const clickLat = e.latlng.lat;
+                const clickLng = e.latlng.lng;
+
+                const assignHtml = '<div class="font-sans min-w-[220px] p-1">' +
+                        '<div class="flex items-center gap-2 mb-3">' +
+                            '<div class="w-6 h-6 bg-palette1/10 rounded-full flex items-center justify-center text-palette1 text-xs"><i class="fa-solid fa-satellite"></i></div>' +
+                            '<h4 class="font-bold text-textMain text-xs">Sahaya Araç İndir</h4>' +
+                        '</div>' +
+                        '<div class="bg-palette4/20 border border-palette4 rounded px-2 py-1.5 mb-3 font-mono text-[10px] text-textMuted">' +
+                            '<strong>KOORDİNAT:</strong><br>' + clickLat.toFixed(5) + ', ' + clickLng.toFixed(5) +
+                        '</div>' +
+                        '<select id="scooterSelector" class="w-full text-xs p-2 border border-palette3 rounded-lg mb-3 bg-white focus:outline-none focus:border-palette1 cursor-pointer">' +
+                            scooterOptions +
+                        '</select>' +
+                        '<button onclick="executeLocationAssignment(' + clickLat + ', ' + clickLng + ')" class="w-full bg-palette1 text-white text-[11px] font-bold py-2 rounded-lg hover:bg-[#3b8a7f] shadow-sm transition-all flex justify-center items-center gap-2">' +
+                            '<i class="fa-solid fa-location-crosshairs"></i> Konumu Mühürle' +
+                        '</button>' +
+                    '</div>';
+
+                L.popup({ minWidth: 240 })
+                    .setLatLng(e.latlng)
+                    .setContent(assignHtml)
+                    .openOn(map);
+            });
+
+            window.executeLocationAssignment = function(lat, lng) {
+                const selector = document.getElementById('scooterSelector');
+                const selectedId = selector.value;
+
+                if (!selectedId) {
+                    selector.classList.add('border-danger');
+                    return;
+                }
+
+                map.closePopup();
+                document.getElementById('loadingOverlay').classList.remove('hidden');
+                document.getElementById('loadingOverlay').classList.add('flex');
+
+                fetch('/update-location', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        [csrfHeader]: csrfToken
+                    },
+                    body: new URLSearchParams({
+                        'id': selectedId,
+                        'latitude': lat,
+                        'longitude': lng
+                    })
+                })
+                .then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        alert('Sunucu ile iletişim kurulamadı. Konum güncellenemedi.');
+                        document.getElementById('loadingOverlay').classList.add('hidden');
+                        document.getElementById('loadingOverlay').classList.remove('flex');
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

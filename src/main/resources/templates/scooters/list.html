@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>VoltFlow — Araç Filosu</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: { 
+                        palette1: '#46A094', palette2: '#6BBD99', palette3: '#AECFA4', palette4: '#C4E8C2', 
+                        cardBg: '#ffffff', textMain: '#1A332F', textMuted: '#5B7A75', danger: '#E05A5A', warning: '#F0A54A'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-[#e4f5ee] text-textMain min-h-screen font-sans flex">
+    
+    <aside class="w-64 bg-white border-r border-palette4 shadow-sm flex flex-col fixed h-full z-50">
+        <div class="px-6 h-20 border-b border-palette4 flex items-center gap-3">
+            <i class="fa-solid fa-bolt text-palette1 text-2xl"></i>
+            <span class="text-palette1 text-xl font-black tracking-widest">VOLTFLOW</span>
+        </div>
+        <nav class="flex-1 px-4 py-6 space-y-2">
+            <a href="/dashboard" class="flex items-center gap-3 px-4 py-3 text-textMuted hover:text-palette1 hover:bg-palette4/20 rounded-xl font-semibold transition-all group">
+                <i class="fa-solid fa-chart-pie text-lg group-hover:scale-110 transition-transform"></i> Dashboard
+            </a>
+            <a sec:authorize="hasRole('ADMIN')" href="/map" class="flex items-center gap-3 px-4 py-3 text-textMuted hover:text-palette1 hover:bg-palette4/20 rounded-xl font-semibold transition-all group">
+                <i class="fa-solid fa-map-location-dot text-lg group-hover:scale-110 transition-transform"></i> Canlı Harita
+            </a>
+            <a href="/scooters" class="flex items-center gap-3 px-4 py-3 bg-palette4/30 text-palette1 rounded-xl font-bold transition-all border border-palette3/50">
+                <i class="fa-solid fa-motorcycle text-lg"></i> Araç Filosu
+            </a>
+            <a sec:authorize="hasRole('ADMIN')" href="/scooters/new" class="flex items-center gap-3 px-4 py-3 text-textMuted hover:text-palette1 hover:bg-palette4/20 rounded-xl font-semibold transition-all group">
+                <i class="fa-solid fa-plus text-lg group-hover:scale-110 transition-transform"></i> Yeni Araç Ekle
+            </a>
+        </nav>
+        <div class="p-4 border-t border-palette4 bg-palette4/10">
+            <div class="flex items-center gap-3 px-2">
+                <div class="w-8 h-8 rounded-full bg-palette1/10 text-palette1 flex items-center justify-center font-bold text-xs border border-palette1/20">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+                <div>
+                    <div class="text-xs font-bold text-textMain uppercase" sec:authentication="name">KULLANICI</div>
+                    <form th:action="@{/logout}" method="post">
+                        <button type="submit" class="text-[10px] text-textMuted hover:text-danger transition-colors cursor-pointer mt-0.5">Sistemden Çıkış</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 pl-64 min-h-screen flex flex-col">
+        
+        <header class="h-20 border-b border-palette4 px-10 flex items-center justify-between bg-white/80 backdrop-blur-md sticky top-0 z-40 shadow-sm">
+            <div class="flex items-center gap-3">
+                <h1 class="text-xl font-black text-textMain tracking-wide">Araç Yönetim Filosu</h1>
+                <span class="text-[10px] bg-palette4/50 text-palette1 border border-palette3/50 px-2 py-0.5 rounded-md font-bold uppercase" th:text="${scooters.size()} + ' Kayıtlı Araç'">0 Kayıt</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <a sec:authorize="hasRole('ADMIN')" href="/scooters/new" class="bg-palette1 text-white px-5 py-2.5 rounded-xl font-bold text-xs hover:bg-[#3b8a7f] transition-all flex items-center gap-2 shadow-sm">
+                    <i class="fa-solid fa-plus"></i> YENİ ARAÇ EKLE
+                </a>
+            </div>
+        </header>
+
+        <div class="p-10 max-w-[1600px] w-full mx-auto space-y-6 flex-1">
+            
+            <div class="bg-white border border-palette4 rounded-2xl p-4 shadow-sm flex flex-wrap items-center justify-between gap-4">
+                <form th:action="@{/scooters}" method="get" class="flex flex-wrap items-center gap-4 w-full md:w-auto">
+                    <div class="relative">
+                        <i class="fa-solid fa-filter absolute left-3 top-1/2 -translate-y-1/2 text-textMuted text-xs"></i>
+                        <select name="status" class="bg-palette4/10 border border-palette3/50 text-textMain text-xs font-bold rounded-lg focus:ring-palette1 focus:border-palette1 block w-40 pl-8 p-2.5 appearance-none cursor-pointer hover:bg-palette4/20 transition-colors" onchange="this.form.submit()">
+                            <option value="">Tüm Durumlar</option>
+                            <option value="YAYINDA" th:selected="${selectedStatus == 'YAYINDA'}">Yayında</option>
+                            <option value="BAKIMDA" th:selected="${selectedStatus == 'BAKIMDA'}">Bakımda</option>
+                            <option value="SARJDA" th:selected="${selectedStatus == 'SARJDA'}">Şarjda</option>
+                        </select>
+                    </div>
+
+                    <div class="relative">
+                        <i class="fa-solid fa-battery-quarter absolute left-3 top-1/2 -translate-y-1/2 text-danger text-xs"></i>
+                        <select name="battery" class="bg-palette4/10 border border-palette3/50 text-textMain text-xs font-bold rounded-lg focus:ring-palette1 focus:border-palette1 block w-48 pl-8 p-2.5 appearance-none cursor-pointer hover:bg-palette4/20 transition-colors" onchange="this.form.submit()">
+                            <option value="">Tüm Batarya Seviyeleri</option>
+                            <option value="critical" th:selected="${selectedBattery == 'critical'}">Kritik Seviye (%0-20)</option>
+                        </select>
+                    </div>
+                </form>
+
+                <a th:if="${selectedStatus != null or selectedBattery != null}" href="/scooters" class="text-[11px] text-textMuted hover:text-danger font-bold flex items-center gap-1 transition-colors px-3 py-2 border border-palette4 rounded-lg hover:border-danger/30">
+                    <i class="fa-solid fa-xmark"></i> Filtreleri Temizle
+                </a>
+            </div>
+
+            <div class="bg-white border border-palette4 rounded-2xl shadow-sm overflow-hidden">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-palette4/20 border-b border-palette4 text-[10px] uppercase tracking-widest text-textMuted">
+                            <th class="p-5 font-bold">Seri Numarası</th>
+                            <th class="p-5 font-bold">Model Entegrasyonu</th>
+                            <th class="p-5 font-bold">Enerji Durumu</th>
+                            <th class="p-5 font-bold">Son Konum</th>
+                            <th class="p-5 font-bold">Operasyon Durumu</th>
+                            <th class="p-5 font-bold text-center">Aksiyon</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-sm font-medium">
+                        
+                        <tr th:if="${scooters.isEmpty()}">
+                            <td colspan="6" class="p-12 text-center text-textMuted">
+                                <i class="fa-regular fa-folder-open text-4xl mb-3 text-palette3"></i>
+                                <p>Sistemde kriterlere uyan aktif araç kaydı bulunamadı.</p>
+                            </td>
+                        </tr>
+                        
+                        <tr th:each="scooter : ${scooters}" class="border-b border-palette4/50 hover:bg-[#e4f5ee]/50 transition-colors group">
+                            <td class="p-5">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-textMain font-bold" th:text="${scooter.serialNumber}">SN</span>
+                                    <span th:if="${scooter.batteryLevel != null and scooter.batteryLevel lt 20.0}" class="text-[9px] bg-danger/10 text-danger border border-danger/20 px-1.5 py-0.5 rounded font-black uppercase"><i class="fa-solid fa-bolt mr-0.5"></i> Kritik</span>
+                                </div>
+                            </td>
+                            <td class="p-5 text-textMuted" th:text="${scooter.model}">Model</td>
+                            <td class="p-5">
+                                <div class="flex items-center gap-3">
+                                    <span th:classappend="${scooter.batteryLevel != null and scooter.batteryLevel lt 20.0 ? 'text-danger' : 'text-textMain'}" class="font-black w-12" th:text="${scooter.batteryLevel} + '%'">%</span>
+                                    <div class="w-20 h-1.5 bg-palette4/50 rounded-full overflow-hidden">
+                                        <div class="h-full rounded-full transition-all" th:classappend="${scooter.batteryLevel != null and scooter.batteryLevel lt 20.0 ? 'bg-danger' : 'bg-palette2'}" th:style="'width: ' + ${scooter.batteryLevel} + '%'"></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="p-5">
+                                <div class="text-[11px] text-textMuted font-mono bg-palette4/20 px-2 py-1 rounded inline-block border border-palette4/50" th:if="${scooter.location != null and scooter.location.latitude != null}">
+                                    <i class="fa-solid fa-location-crosshairs mr-1 text-palette1"></i>
+                                    <span th:text="${scooter.location.latitude} + ', ' + ${scooter.location.longitude}">Koordinat</span>
+                                </div>
+                                <span th:if="${scooter.location == null or scooter.location.latitude == null}" class="text-textMuted opacity-50"><i class="fa-solid fa-minus"></i></span>
+                            </td>
+                            <td class="p-5">
+                                <span th:if="${scooter.status != null and scooter.status.name() == 'YAYINDA'}" class="text-[10px] bg-palette2/10 text-palette2 border border-palette2/30 px-2 py-1 rounded font-bold uppercase tracking-wider"><i class="fa-solid fa-circle text-[6px] align-middle mr-1"></i> Yayında</span>
+                                <span th:if="${scooter.status != null and scooter.status.name() == 'BAKIMDA'}" class="text-[10px] bg-warning/10 text-warning border border-warning/30 px-2 py-1 rounded font-bold uppercase tracking-wider"><i class="fa-solid fa-wrench text-[10px] align-middle mr-1"></i> Bakımda</span>
+                                <span th:if="${scooter.status != null and scooter.status.name() == 'SARJDA'}" class="text-[10px] bg-danger/10 text-danger border border-danger/30 px-2 py-1 rounded font-bold uppercase tracking-wider"><i class="fa-solid fa-plug text-[10px] align-middle mr-1"></i> Şarjda</span>
+                            </td>
+                            <td class="p-5 text-center space-x-1">
+                                <a th:href="@{/scooters/{id}(id=${scooter.id})}" class="inline-flex items-center justify-center w-8 h-8 bg-palette4/30 text-palette1 border border-palette3/50 rounded-lg hover:bg-palette1 hover:text-white transition-colors" title="İncele"><i class="fa-solid fa-magnifying-glass text-xs"></i></a>
+                                
+                                <a sec:authorize="hasRole('ADMIN')" th:href="@{/scooters/edit/{id}(id=${scooter.id})}" class="inline-flex items-center justify-center w-8 h-8 bg-warning/10 text-warning border border-warning/30 rounded-lg hover:bg-warning hover:text-white transition-colors" title="Düzenle"><i class="fa-solid fa-pen text-xs"></i></a>
+                                
+                                <a sec:authorize="hasRole('ADMIN')" th:href="@{/scooters/delete/{id}(id=${scooter.id})}" onclick="return confirm('Bu aracı sistemden tamamen silmek istediğinize emin misiniz?')" class="inline-flex items-center justify-center w-8 h-8 bg-danger/10 text-danger border border-danger/30 rounded-lg hover:bg-danger hover:text-white transition-colors" title="Sil"><i class="fa-solid fa-trash-can text-xs"></i></a>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>VoltFlow — Hata</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: { palette1: '#46A094', textMain: '#1A332F', danger: '#E05A5A', warning: '#F0A54A' }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="min-h-screen bg-[#e4f5ee] font-sans flex items-center justify-center p-6">
+    <div class="bg-white border border-danger/30 rounded-2xl p-10 max-w-2xl w-full text-center shadow-lg relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-full h-1 bg-danger"></div>
+        
+        <i class="fa-solid fa-triangle-exclamation text-6xl text-danger mb-4 opacity-90"></i>
+        <h1 class="text-3xl font-black text-textMain mb-6 tracking-wide">Sistemde Bir Hata Oluştu</h1>
+        
+        <div class="bg-danger/5 border border-danger/20 rounded-xl p-5 mb-8 text-left overflow-auto max-h-48 shadow-inner">
+            <p class="text-danger font-bold text-xs uppercase tracking-wider mb-1">Hata Mesajı:</p>
+            <p class="text-textMain text-sm mb-4 font-medium" th:text="${errorMessage}">Bilinmeyen bir hata.</p>
+            
+            <p class="text-danger font-bold text-xs uppercase tracking-wider mb-1">Detay:</p>
+            <p class="text-gray-500 text-xs font-mono" th:text="${errorDetails}">Detay yok.</p>
+        </div>
+
+        <div class="flex gap-4 justify-center">
+            <button onclick="history.back()" class="px-6 py-3 border border-palette1 text-palette1 font-bold text-sm rounded-xl hover:bg-palette1/10 transition-colors">
+                <i class="fa-solid fa-arrow-left mr-2"></i> Geri Dön
+            </button>
+            <a href="/dashboard" class="px-6 py-3 bg-palette1 text-white font-bold text-sm rounded-xl hover:bg-[#3b8a7f] transition-colors shadow-sm">
+                Ana Sayfa
+            </a>
+        </div>
+    </div>
+</body>
+</html>
