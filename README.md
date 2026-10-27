@@ -28,7 +28,7 @@ Spring Boot ile geliştirilmiş, rol tabanlı giriş sistemine sahip bir web uyg
 | Güvenlik | Spring Security (form tabanlı giriş, BCrypt şifreleme) |
 | Görünüm | Thymeleaf, Thymeleaf Spring Security eklentisi |
 | Ön yüz | Tailwind CSS (CDN), Chart.js, Font Awesome |
-| Harita | Leaflet + OpenStreetMap katmanı (API anahtarı gerektirmez) |
+| Harita | Leaflet + OpenStreetMap katmanı |
 | Diğer | Lombok, Bean Validation, Maven |
 
 ## Kurulum
